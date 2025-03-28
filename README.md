@@ -3,6 +3,11 @@
 Author: <https://github.com/itwars>  
 Current Maintainer: <https://github.com/dereknola>
 
+[TIP]
+====
+This is the readme for the upstram project; the Oxide-specific fork readme is [here](./README-OXIDE.adoc)
+====
+ 
 Easily bring up a cluster on machines running:
 
 - [X] Debian
