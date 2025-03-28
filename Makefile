@@ -1,4 +1,15 @@
 # Makefile for k3s-ansible Infra/Deployment
+#
+SHELL = /bin/bash
+
+
+project_name := $(shell grep '^project_name' infra/oxide/terraform.tfvars | sed 's/.*= *"\(.*\)"/\1/')
+vpc_name       := $(shell grep '^vpc_name' infra/oxide/terraform.tfvars | sed 's/.*= *"\(.*\)"/\1/')
+instance_count := $(shell grep '^instance_count' infra/oxide/terraform.tfvars | sed 's/.*= *\([0-9]*\).*/\1/')
+k3s_version    := $(shell grep '^k3s_version' infra/oxide/terraform.tfvars | sed 's/.*= *"\(.*\)"/\1/')
+ansible_user   := $(shell grep '^ansible_user' infra/oxide/terraform.tfvars | sed 's/.*= *"\(.*\)"/\1/')
+k3s_token      := $(shell grep '^k3s_token' infra/oxide/terraform.tfvars | sed 's/.*= *"\(.*\)"/\1/')
+
 
 # Default target: show help
 .PHONY: help
@@ -8,16 +19,15 @@ help:
 	@echo "Targets:"
 	@echo "  validate        - Validate Terraform configuration"
 	@echo "  show-vars       - Display project variables"
-	@echo "  infra-up        - Stand up the infrastructure using Terraform"
+	@echo "  infra-up        - Stand up the infrastructure using Terraform and wait for hosts to respond to ansible-ping"
 	@echo "  deploy          - Deploy the environment using Ansible"
-	@echo "  fix-kubeconfig  - Fix the kubeconfig file to use the external IP"
+	@echo "  fix-kubeconfig  - Fix the kubeconfig file to use external IP"
 	@echo "  check           - Run kubectl commands to check the cluster status"
 	@echo "  destroy         - Destroy the infrastructure using Terraform"
-	@echo "  lint            - (Optional) Run linting on Terraform and Ansible files"
-	@echo "  env-check       - (Optional) Validate that necessary env variables are set"
+	@echo "  lint            - Run linting on Terraform and Ansible files"
 	@echo "  full-deploy     - Run validate, infra-up, deploy, fix-kubeconfig, and check in order"
 
-# Validate that the Terraform configuration is correct
+# Validate Terraform configuration
 .PHONY: validate
 validate:
 	@echo "Validating Terraform configuration in infra/oxide..."
@@ -26,19 +36,26 @@ validate:
 # Show project variables (customize as needed)
 .PHONY: show-vars
 show-vars:
-	@echo "Project Variables:"
-	@echo "  project_name: $(project_name)"
-	@echo "  vpc_name: $(vpc_name)"
-	@echo "  instance_count: $(instance_count)"
-	@echo "  k3s_version: $(k3s_version)"
-	@echo "  ansible_user: $(ansible_user)"
-	@echo "  k3s_token: $(k3s_token)"
+	@set +H; \
+	echo "Project Variables:"; \
+	echo "  project_name: $(project_name)"; \
+	echo "  vpc_name: $(vpc_name)"; \
+	echo "  instance_count: $(instance_count)"; \
+	echo "  k3s_version: $(k3s_version)"; \
+	echo "  ansible_user: $(ansible_user)"; \
+	echo "  k3s_token: $(k3s_token)"; \
 
-# Stand up the infrastructure with Terraform
+# Stand up the infrastructure with Terraform and wait for ansible-ping to succeed
 .PHONY: infra-up
 infra-up:
 	@echo "Initializing and applying Terraform configuration..."
 	cd infra/oxide && tofu init && tofu apply -auto-approve
+	@echo "Waiting for all hosts to respond to ansible-ping..."
+	@until ansible all -m ping -i inventory.yml; do \
+	  echo "Hosts not reachable yet, waiting 10 seconds..."; \
+	  sleep 10; \
+	done
+	@echo "All hosts are reachable."
 
 # Deploy the environment using Ansible
 .PHONY: deploy
@@ -46,7 +63,7 @@ deploy:
 	@echo "Deploying environment with Ansible..."
 	ansible-playbook playbooks/site.yml -i inventory.yml
 
-# Fix the kubeconfig file to use external IP
+# Fix the kubeconfig file to use external IP for remote access
 .PHONY: fix-kubeconfig
 fix-kubeconfig:
 	@echo "Fixing kubeconfig to use external IP..."
@@ -66,45 +83,17 @@ destroy:
 	@echo "Destroying infrastructure with Terraform..."
 	cd infra/oxide && tofu destroy -auto-approve
 
-# Optional: Linting for Terraform and Ansible
+# Lint Terraform and Ansible files
 .PHONY: lint
 lint:
 	@echo "Formatting Terraform files..."
 	cd infra/oxide && tofu fmt -recursive
-	@echo "Linting Terraform files..."
+	@echo "Checking Terraform file formatting..."
 	tofu fmt -check -recursive infra/oxide
 	@echo "Linting Ansible playbooks..."
 	ansible-lint playbooks/
 
-# Stand up the infrastructure with Terraform and wait for hosts to respond to ansible-ping
-.PHONY: infra-up
-infra-up:
-	@echo "Initializing and applying Terraform configuration..."
-	cd infra/oxide && terraform init && terraform apply -auto-approve
-	@echo "Waiting for all hosts to respond to ansible-ping..."
-	@until ansible all -m ping -i inventory.yml; do \
-	  echo "Hosts not reachable yet, waiting 10 seconds..."; \
-	  sleep 10; \
-	done
-	@echo "All hosts are reachable."
-
-
-.PHONY: env-check
-env-check:
-	@echo "Checking environment variables..."
-	@if [ -z "$$OXIDE_HOST" ]; then \
-		echo "Error: OXIDE_HOST is not set"; exit 1; \
-	else \
-		echo "OXIDE_HOST: $$OXIDE_HOST"; \
-	fi
-	@if [ -z "$$OXIDE_TOKEN" ]; then \
-		echo "Error: OXIDE_TOKEN is not set"; exit 1; \
-	else \
-		echo "OXIDE_TOKEN (first 5 chars): $$(echo $$OXIDE_TOKEN | cut -c1-5)"; \
-	fi
-
-
-# Full deployment: validate, infra-up, deploy, fix-kubeconfig, and check in sequence.
+# Full deployment: validate, infra-up, deploy, fix-kubeconfig, and check (in order)
 .PHONY: full-deploy
 full-deploy: validate infra-up deploy fix-kubeconfig check
 	@echo "Full deployment complete!"
