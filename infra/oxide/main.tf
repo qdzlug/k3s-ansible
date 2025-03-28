@@ -185,7 +185,7 @@ locals {
   sorted_instance_keys = sort(keys(oxide_instance.nodes))
   node_ips = [
     for k in local.sorted_instance_keys :
-      data.oxide_instance_external_ips.nodes[k].external_ips[0].ip
+    data.oxide_instance_external_ips.nodes[k].external_ips[0].ip
   ]
   api_endpoint = local.node_ips[0]
 }
@@ -200,8 +200,9 @@ resource "local_file" "inventory_yaml" {
     "%s%s",
     templatefile("${path.root}/templates/inventory.yml.tpl", {
       node_ips     = local.node_ips
-      server_count = var.instance_count
+      server_count = var.server_count
     }),
     local.extra_inventory_lines
   )
 }
+
