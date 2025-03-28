@@ -77,18 +77,9 @@
     group: root
     mode: "u=rw,g=r,o=r"
 
-#- name: Enable and check K3s service
-#  ansible.builtin.systemd:
-#    name: k3s-agent
-#    daemon_reload: "{{ true if k3s_agent_service.changed else false }}"
-#    state: "{{ 'restarted' if (k3s_agent_service.changed or _agent_config_result.changed) else 'started' }}"
-#    enabled: true
-
 - name: Enable and check K3s service
   ansible.builtin.systemd:
     name: k3s-agent
     daemon_reload: "{{ true if k3s_agent_service.changed else false }}"
     state: "{{ 'restarted' if (k3s_agent_service.changed or _agent_config_result.changed) else 'started' }}"
     enabled: true
-  async: 300  # allow up to 300 seconds for the service to start
-  poll: 10    # check every 10 seconds

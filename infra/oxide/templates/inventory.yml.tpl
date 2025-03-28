@@ -3,17 +3,13 @@ k3s_cluster:
   children:
     server:
       hosts:
-%{ for ip in slice(node_ips, 0, server_count) }
-        ${ip}:
-%{ endfor }
+        172.21.252.101:
+        172.21.252.105:
+        172.21.252.104:
     agent:
       hosts:
-%{ for ip in slice(node_ips, server_count, length(node_ips)) }
-        ${ip}:
-%{ endfor }
   vars:
     ansible_port: 22
     ansible_user: ubuntu
     k3s_version: v1.30.2+k3s1
     token: "changeme!"
-    api_endpoint: "${server_internal_ips[0]}"
