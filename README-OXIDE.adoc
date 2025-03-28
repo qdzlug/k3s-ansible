@@ -126,8 +126,8 @@ make destroy
 
 == Additional Notes
 
-* This fork does not modify the upstream Ansible playbooks for deploying K3s. All Oxide-specific customizations reside in `./infra/oxide` and additional playbooks.
-* We designed the fork to maintain upstream compatibility. Our modifications (such as inventory generation and kubeconfig post-processing) are implemented in separate files so that you can easily sync with upstream changes.
+* Testing has been primarily done with Ubuntu, but the K3s-Ansible upstream project has been built to deploy on Debian, RedHat, and SUSE as well.
+* We designed the fork to maintain upstream compatibility. Our modifications (such as inventory generation and kubeconfig post-processing) are implemented in separate files so that you can easily sync with upstream changes. Most of these are in ./infra/oxide, with the exception of this README and the Makefile.
 * Contributions or issues specific to the Oxide integration can be submitted via this fork's GitHub repository.
 
 == Contributing
