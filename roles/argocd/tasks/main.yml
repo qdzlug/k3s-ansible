@@ -1,0 +1,32 @@
+- name: Create argocd namespace
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: argocd
+    state: present
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Add argo Helm repo
+  community.kubernetes.helm_repository:
+    name: argo
+    repo_url: https://argoproj.github.io/argo-helm
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Install ArgoCD via Helm
+  community.kubernetes.helm:
+    name: argocd
+    chart_ref: argo/argo-cd
+    release_namespace: argocd
+    create_namespace: true
+    update_repo_cache: true
+    values:
+      server:
+        service:
+          type: ClusterIP
+  delegate_to: localhost
+  become: false
+  run_once: true

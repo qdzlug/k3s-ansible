@@ -76,6 +76,45 @@ EOF
   )
 }
 
+resource "oxide_disk" "nginx_lb" {
+  project_id      = data.oxide_project.k3s.id
+  name            = "nginx-lb-disk"
+  size            = 34359738368
+  description     = "Boot disk for nginx load balancer"
+  source_image_id = var.ubuntu_image_id
+}
+
+resource "oxide_instance" "nginx_lb" {
+  project_id       = data.oxide_project.k3s.id
+  name             = "nginx-lb"
+  description      = "NGINX Load Balancer"
+  boot_disk_id     = oxide_disk.nginx_lb.id
+  disk_attachments = [oxide_disk.nginx_lb.id]
+  ssh_public_keys  = [oxide_ssh_key.k3s.id]
+  memory           = 2147483648
+  ncpus            = 1
+  start_on_create  = true
+  host_name        = "nginx-lb"
+
+  external_ips = [{
+    type = "ephemeral"
+  }]
+
+  network_interfaces = [{
+    name        = "nic-nginx-lb"
+    description = "Primary NIC"
+    vpc_id      = data.oxide_vpc_subnet.default.vpc_id
+    subnet_id   = data.oxide_vpc_subnet.default.id
+  }]
+
+  user_data = base64encode(<<-EOF
+#!/bin/bash
+echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu
+chmod 0440 /etc/sudoers.d/ubuntu
+EOF
+  )
+}
+
 resource "oxide_vpc_firewall_rules" "example" {
   vpc_id = oxide_vpc.k3s.id
 
@@ -181,28 +220,39 @@ data "oxide_instance_external_ips" "nodes" {
   instance_id = each.value.id
 }
 
+data "oxide_instance_external_ips" "nginx_lb" {
+  instance_id = oxide_instance.nginx_lb.id
+}
+
 locals {
   sorted_instance_keys = sort(keys(oxide_instance.nodes))
   node_ips = [
     for k in local.sorted_instance_keys :
     data.oxide_instance_external_ips.nodes[k].external_ips[0].ip
   ]
+  nginx_lb_ip = data.oxide_instance_external_ips.nginx_lb.external_ips[0].ip
   api_endpoint = local.node_ips[0]
-}
+  extra_inventory_lines = <<EOT
 
-locals {
-  extra_inventory_lines = "\n    api_endpoint: \"{{ hostvars[groups['server'][0]].ansible_default_ipv4.address }}\"\n    extra_server_args: \"--tls-san {{ hostvars[groups['server'][0]].ansible_default_ipv4.address }} --tls-san {{ hostvars[groups['server'][0]]['ansible_host'] | default(groups['server'][0]) }}\""
+  lb:
+    hosts:
+      ${local.nginx_lb_ip}:
+        traefik_backend_host: ${local.node_ips[0]}
+
+    api_endpoint: "{{ hostvars[groups['server'][0]].ansible_default_ipv4.address }}"
+    extra_server_args: "--tls-san {{ hostvars[groups['server'][0]].ansible_default_ipv4.address }} --tls-san {{ hostvars[groups['server'][0]]['ansible_host'] | default(groups['server'][0]) }}"
+EOT
 }
 
 resource "local_file" "inventory_yaml" {
   filename = "${path.root}/../../inventory.yml"
-  content  = format(
-    "%s%s",
-    templatefile("${path.root}/templates/inventory.yml.tpl", {
-      node_ips     = local.node_ips
-      server_count = var.server_count
-    }),
-    local.extra_inventory_lines
-  )
+  content = templatefile("${path.root}/templates/inventory.yml.tpl", {
+    node_ips           = local.node_ips,
+    server_count       = var.server_count,
+    nginx_lb_ip        = local.nginx_lb_ip,
+    traefik_backend_ip = local.node_ips[0]
+    ansible_user       = var.ansible_user
+    k3s_token          = var.k3s_token
+    k3s_version        = var.k3s_version
+  })
 }
-

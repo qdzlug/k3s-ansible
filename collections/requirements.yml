@@ -2,3 +2,6 @@
 collections:
   - name: community.general
   - name: ansible.posix
+collections:
+  - name: community.kubernetes
+    version: ">=2.0.1"
