@@ -23,3 +23,8 @@ lb:
     token: "${k3s_token}"
     api_endpoint: "${traefik_backend_ip}"
     extra_server_args: "--tls-san ${traefik_backend_ip} --tls-san ${node_ips[0]}"
+
+lb:
+  hosts:
+    ${nginx_lb_ip}:
+      traefik_backend_host: ${traefik_backend_ip}
