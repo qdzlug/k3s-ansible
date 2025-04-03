@@ -4,12 +4,12 @@ variable "project_name" {
 }
 
 variable "vpc_name" {
-  description = "Name of the VPC"
+  description = "VPC name"
   type        = string
 }
 
 variable "vpc_dns_name" {
-  description = "DNS name for the VPC"
+  description = "VPC DNS name"
   type        = string
 }
 
@@ -19,59 +19,66 @@ variable "vpc_description" {
 }
 
 variable "instance_count" {
-  description = "Number of nodes in the k3s cluster"
+  description = "Number of total nodes"
   type        = number
-  default     = 3
+}
+
+variable "server_count" {
+  description = "Number of K3s server nodes"
+  type        = number
 }
 
 variable "memory" {
-  description = "Memory in bytes per node"
+  description = "Memory (bytes) for K3s nodes"
   type        = number
-  default     = 4294967296
 }
 
 variable "ncpus" {
-  description = "CPU count per node"
+  description = "CPU cores for K3s nodes"
   type        = number
-  default     = 2
 }
 
 variable "disk_size" {
-  description = "Disk size in bytes"
+  description = "Disk size (bytes) for K3s nodes"
   type        = number
-  default     = 34359738368
 }
 
 variable "ubuntu_image_id" {
-  description = "UUID of the Ubuntu image in Oxide"
+  description = "UUID of Ubuntu image"
   type        = string
 }
 
 variable "public_ssh_key" {
-  description = "Public SSH key for Ansible provisioning"
+  description = "SSH public key"
   type        = string
 }
 
+# NEW: NGINX Load Balancer variables
+variable "nginx_lb_memory" {
+  description = "Memory (bytes) for the NGINX LB node"
+  type        = number
+}
+
+variable "nginx_lb_ncpus" {
+  description = "CPU cores for the NGINX LB node"
+  type        = number
+}
+
+variable "nginx_lb_disk_size" {
+  description = "Disk size (bytes) for the NGINX LB node"
+  type        = number
+}
 variable "ansible_user" {
-  description = "User for Ansible provisioning"
+  description = "Username for SSH access to instances"
   type        = string
-  default     = "ubuntu"
-}
-
-variable "k3s_version" {
-  description = "K3s version to install"
-  type        = string
-  default     = "v1.30.2+k3s1"
 }
 
 variable "k3s_token" {
-  description = "Token for joining k3s cluster"
+  description = "Token to use for the K3s cluster join"
   type        = string
-  default     = "changeme!"
 }
 
-variable "server_count" {
-  description = "Number of nodes to treat as servers"
-  type        = number
-  default     = 1
+variable "k3s_version" {
+  description = "Version of K3s to install"
+  type        = string
 }

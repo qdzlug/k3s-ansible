@@ -1,7 +1,17 @@
 # Makefile for k3s-ansible Infra/Deployment
 #
 SHELL = /bin/bash
+.DEFAULT_GOAL := help
 
+
+# Setup Python virtual environment and Ansible collections
+.PHONY: venv
+venv:
+	@echo "Creating Python virtual environment and installing dependencies..."
+	python3 -m venv .venv
+	. .venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt
+	. .venv/bin/activate && ansible-galaxy collection install -r collections/requirements.yml
+	@echo "Virtual environment ready. Use 'source .venv/bin/activate' to enter."
 
 project_name := $(shell grep '^project_name' infra/oxide/terraform.tfvars | sed 's/.*= *"\(.*\)"/\1/')
 vpc_name       := $(shell grep '^vpc_name' infra/oxide/terraform.tfvars | sed 's/.*= *"\(.*\)"/\1/')
@@ -9,7 +19,6 @@ instance_count := $(shell grep '^instance_count' infra/oxide/terraform.tfvars | 
 k3s_version    := $(shell grep '^k3s_version' infra/oxide/terraform.tfvars | sed 's/.*= *"\(.*\)"/\1/')
 ansible_user   := $(shell grep '^ansible_user' infra/oxide/terraform.tfvars | sed 's/.*= *"\(.*\)"/\1/')
 k3s_token      := $(shell grep '^k3s_token' infra/oxide/terraform.tfvars | sed 's/.*= *"\(.*\)"/\1/')
-
 
 # Default target: show help
 .PHONY: help
@@ -26,6 +35,7 @@ help:
 	@echo "  destroy         - Destroy the infrastructure using Terraform"
 	@echo "  lint            - Run linting on Terraform and Ansible files"
 	@echo "  full-deploy     - Run validate, infra-up, deploy, fix-kubeconfig, and check in order"
+	@echo "  venv            - Create Python venv, install pip packages + Ansible collections"
 
 # Validate Terraform configuration
 .PHONY: validate
@@ -51,7 +61,7 @@ infra-up:
 	@echo "Initializing and applying Terraform configuration..."
 	cd infra/oxide && tofu init && tofu apply -auto-approve
 	@echo "Waiting for all hosts to respond to ansible-ping..."
-	@until ansible all -m ping -i inventory.yml; do \
+	@until .venv/bin/ansible all -m ping -i inventory.yml; do \
 	  echo "Hosts not reachable yet, waiting 10 seconds..."; \
 	  sleep 10; \
 	done
@@ -61,13 +71,13 @@ infra-up:
 .PHONY: deploy
 deploy:
 	@echo "Deploying environment with Ansible..."
-	ansible-playbook playbooks/site.yml -i inventory.yml
+	.venv/bin/ansible-playbook playbooks/site.yml -i inventory.yml
 
 # Fix the kubeconfig file to use external IP for remote access
 .PHONY: fix-kubeconfig
 fix-kubeconfig:
 	@echo "Fixing kubeconfig to use external IP..."
-	ansible-playbook infra/oxide/fix-kubeconfig.yml -i inventory.yml
+	.venv/bin/ansible-playbook infra/oxide/fix-kubeconfig.yml -i inventory.yml
 
 # Check that the infrastructure is up using kubectl commands
 .PHONY: check
@@ -91,7 +101,7 @@ lint:
 	@echo "Checking Terraform file formatting..."
 	tofu fmt -check -recursive infra/oxide
 	@echo "Linting Ansible playbooks..."
-	ansible-lint playbooks/
+	.venv/bin/ansible-lint playbooks/
 
 # Full deployment: validate, infra-up, deploy, fix-kubeconfig, and check (in order)
 .PHONY: full-deploy
