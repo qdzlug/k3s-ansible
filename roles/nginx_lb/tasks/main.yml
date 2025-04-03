@@ -1,0 +1,95 @@
+---
+- name: Add NGINX official signing key
+  ansible.builtin.apt:
+    name: gnupg2
+    state: present
+    update_cache: true
+
+- name: Install required packages for HTTPS APT transport
+  ansible.builtin.apt:
+    name:
+      - curl
+      - ca-certificates
+      - lsb-release
+      - ubuntu-keyring
+    state: present
+
+- name: Add NGINX signing key to keyring
+  ansible.builtin.shell: |
+    curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor | tee /usr/share/keyrings/nginx-archive-keyring.gpg > /dev/null
+  args:
+    creates: /usr/share/keyrings/nginx-archive-keyring.gpg
+
+- name: Add NGINX repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/ubuntu {{ ansible_distribution_release | lower }} nginx"
+    state: present
+    filename: nginx
+
+- name: Install NGINX from official repo
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: true
+
+- name: Ensure NGINX is enabled and running
+  ansible.builtin.service:
+    name: nginx
+    enabled: true
+    state: started
+
+---
+- name: Install NGINX
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: true
+
+- name: Ensure NGINX is enabled and running
+  ansible.builtin.service:
+    name: nginx
+    enabled: true
+    state: started
+
+- name: Deploy NGINX HTTP proxy configuration
+  ansible.builtin.template:
+    src: nginx_k3s_proxy.conf.j2
+    dest: /etc/nginx/sites-available/k3s
+    mode: "0644"
+
+- name: Enable k3s HTTP site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/k3s
+    dest: /etc/nginx/sites-enabled/k3s
+    state: link
+    force: true
+
+- name: Remove default site if enabled
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Create streams-enabled directory
+  ansible.builtin.file:
+    path: /etc/nginx/streams-enabled
+    state: directory
+    mode: "0755"
+
+- name: Deploy NGINX stream passthrough config for HTTPS
+  ansible.builtin.template:
+    src: nginx_k3s_stream.conf.j2
+    dest: /etc/nginx/streams-enabled/k3s-https.conf
+    mode: "0644"
+
+- name: Ensure NGINX includes stream configs
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    insertafter: 'http {'
+    line: '    include /etc/nginx/streams-enabled/*.conf;'
+    state: present
+    regexp: 'streams-enabled/\*\.conf'
+
+- name: Reload NGINX
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

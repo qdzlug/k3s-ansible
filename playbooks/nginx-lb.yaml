@@ -1,0 +1,6 @@
+---
+- name: Configure NGINX Load Balancer for K3s Cluster
+  hosts: lb
+  become: true
+  roles:
+    - nginx_lb

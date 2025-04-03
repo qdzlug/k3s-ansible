@@ -1,0 +1,10 @@
+stream {
+    upstream traefik_https {
+        server {{ traefik_backend_host }}:30443;
+    }
+
+    server {
+        listen 443;
+        proxy_pass traefik_https;
+    }
+}
