@@ -1,6 +1,6 @@
 stream {
     upstream traefik_https {
-        server {{ traefik_backend_host }}:30443;
+        server {{ traefik_backend_host }}:{{ traefik_https_nodeport }};
     }
 
     server {

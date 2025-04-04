@@ -121,6 +121,54 @@ resource "oxide_vpc_firewall_rules" "example" {
   rules = [
     {
       action      = "allow"
+      description = "Allow inbound HTTP (port 80) from anywhere."
+      name        = "allow-http-80"
+      direction   = "inbound"
+      priority    = 55
+      status      = "enabled"
+      filters = {
+        hosts = [
+          {
+            type  = "ip_net"
+            value = "0.0.0.0/0"
+          }
+        ]
+        ports     = ["80"]
+        protocols = ["TCP"]
+      }
+      targets = [
+        {
+          type  = "subnet"
+          value = data.oxide_vpc_subnet.default.name
+        }
+      ]
+    },
+    {
+      action      = "allow"
+      description = "Allow inbound HTTPS (port 443) from anywhere."
+      name        = "allow-https-443"
+      direction   = "inbound"
+      priority    = 56
+      status      = "enabled"
+      filters = {
+        hosts = [
+          {
+            type  = "ip_net"
+            value = "0.0.0.0/0"
+          }
+        ]
+        ports     = ["443"]
+        protocols = ["TCP"]
+      }
+      targets = [
+        {
+          type  = "subnet"
+          value = data.oxide_vpc_subnet.default.name
+        }
+      ]
+    },
+    {
+      action      = "allow"
       description = "Allow inbound TCP traffic on port 6443 (Kubernetes API) from anywhere."
       name        = "allow-k8s-api-6443"
       direction   = "inbound"
@@ -230,8 +278,8 @@ locals {
     for k in local.sorted_instance_keys :
     data.oxide_instance_external_ips.nodes[k].external_ips[0].ip
   ]
-  nginx_lb_ip = data.oxide_instance_external_ips.nginx_lb.external_ips[0].ip
-  api_endpoint = local.node_ips[0]
+  nginx_lb_ip           = data.oxide_instance_external_ips.nginx_lb.external_ips[0].ip
+  api_endpoint          = local.node_ips[0]
   extra_inventory_lines = <<EOT
 
   lb:
