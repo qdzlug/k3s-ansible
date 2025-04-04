@@ -16,10 +16,13 @@ k3s_cluster:
     ansible_user: ${ansible_user}
     k3s_version: "${k3s_version}"
     token: "${k3s_token}"
-    api_endpoint: "{{ hostvars[groups['server'][0]].ansible_default_ipv4.address }}"
-    extra_server_args: "--tls-san {{ hostvars[groups['server'][0]].ansible_default_ipv4.address }} --tls-san {{ hostvars[groups['server'][0]]['ansible_host'] | default(groups['server'][0]) }}"
+    api_endpoint: "${api_endpoint}"
+    extra_server_args: "--tls-san ${internal_ip} --tls-san ${external_ip}"
 
 lb:
   hosts:
     ${nginx_lb_ip}:
-      traefik_backend_host: ${traefik_backend_ip}
+      traefik_backend_hosts:
+%{ for ip in backend_ips ~}
+        - ${ip}
+%{ endfor ~}

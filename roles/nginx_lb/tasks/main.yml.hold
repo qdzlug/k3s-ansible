@@ -54,33 +54,6 @@
     enabled: true
     state: started
 
-#- name: Get list of all node IPs
-#  set_fact:
-#    traefik_backend_hosts: "{{ groups['k3s_cluster'] | map('extract', hostvars, 'ansible_host') | list }}"
-#
-- name: Get list of all node internal IPs
-  set_fact:
-    traefik_backend_hosts: >-
-      {{ groups['k3s_cluster']
-         | map('extract', hostvars, ['ansible_default_ipv4', 'address'])
-         | list }}
-
-- name: Get Traefik NodePort info
-  kubernetes.core.k8s_info:
-    kind: Service
-    namespace: kube-system
-    name: traefik
-    kubeconfig: "{{ kubeconfig | default(lookup('env', 'HOME') ~ '/.kube/config') }}"
-  register: traefik_info
-  delegate_to: localhost
-  run_once: true
-  become: false
-
-- name: Set Traefik NodePort values
-  set_fact:
-    traefik_http_nodeport: "{{ traefik_info.resources[0].spec.ports | selectattr('port', 'equalto', 80) | map(attribute='nodePort') | list | first }}"
-    traefik_https_nodeport: "{{ traefik_info.resources[0].spec.ports | selectattr('port', 'equalto', 443) | map(attribute='nodePort') | list | first }}"
-
 - name: Deploy NGINX HTTP proxy configuration
   ansible.builtin.template:
     src: nginx_k3s_proxy.conf.j2
@@ -117,9 +90,52 @@
     insertafter: 'http {'
     line: '    include /etc/nginx/streams-enabled/*.conf;'
     state: present
-    regexp: 'streams-enabled/\\*\\.conf'
+    regexp: 'streams-enabled/\*\.conf'
 
 - name: Reload NGINX
   ansible.builtin.service:
     name: nginx
     state: reloaded
+
+#- name: Show current KUBECONFIG path
+#  become: false
+#  debug:
+#    msg: "Using kubeconfig: {{ kubeconfig | default(lookup('env', 'HOME') ~ '/.kube/config') }}"
+#  run_once: true
+#  delegate_to: localhost
+#
+#- name: Try kube access manually in Ansible
+#  command: kubectl get nodes
+#  become: false
+#  delegate_to: localhost
+#  environment:
+#    KUBECONFIG: "/Users/jschmidt/.kube/config"
+#  register: kubectl_nodes
+#  changed_when: false
+#  failed_when: kubectl_nodes.rc != 0
+#
+#- name: Show node list from kubectl
+#  become: true
+#  debug:
+#    var: kubectl_nodes.stdout
+#  when: kubectl_nodes is defined
+
+- name: Wait for Traefik service to be updated
+  kubernetes.core.k8s_info:
+    kind: Service
+    namespace: kube-system
+    name: traefik
+    kubeconfig: "{{ kubeconfig | default(lookup('env', 'HOME') ~ '/.kube/config') }}"
+  register: traefik_service_info
+  until:
+    - traefik_service_info is defined
+    - traefik_service_info.resources is defined
+    - traefik_service_info.resources | length > 0
+    - 30080 in traefik_service_info.resources[0].spec.ports | map(attribute='nodePort') | list
+    - 30443 in traefik_service_info.resources[0].spec.ports | map(attribute='nodePort') | list
+  retries: 10
+  delay: 6
+  delegate_to: localhost
+  become: false
+  changed_when: false
+

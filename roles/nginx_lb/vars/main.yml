@@ -1,0 +1,2 @@
+traefik_http_nodeport: 30080
+traefik_https_nodeport: 30443
