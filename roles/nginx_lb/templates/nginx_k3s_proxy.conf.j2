@@ -1,3 +1,9 @@
+upstream traefik_http {
+{% for host in traefik_backend_hosts %}
+    server {{ host }}:{{ traefik_http_nodeport }};
+{% endfor %}
+}
+
 server {
     listen 80;
     server_name _;

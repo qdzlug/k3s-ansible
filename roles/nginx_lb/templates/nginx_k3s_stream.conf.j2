@@ -1,6 +1,8 @@
 stream {
     upstream traefik_https {
-        server {{ traefik_backend_host }}:{{ traefik_https_nodeport }};
+    {% for host in traefik_backend_hosts %}
+        server {{ host }}:{{ traefik_https_nodeport }};
+    {% endfor %}
     }
 
     server {

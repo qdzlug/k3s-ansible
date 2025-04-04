@@ -5,4 +5,4 @@ venv
 inventory.yml
 playbook/debug.yml
 .ansible
-.idea
+.idea!/infra/oxide/.terraform.lock.hcl

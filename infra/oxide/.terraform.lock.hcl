@@ -1,4 +1,4 @@
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
 provider "registry.opentofu.org/hashicorp/local" {
@@ -19,49 +19,6 @@ provider "registry.opentofu.org/hashicorp/local" {
 }
 
 provider "registry.opentofu.org/oxidecomputer/oxide" {
-  version     = "0.5.0"
-  constraints = "0.5.0"
-  hashes = [
-    "h1:rYyTFuoCRVnaLjmwTG1j84UAtfZM2YHmJ5vXcRugFz0=",
-    "zh:045e1206d3732a352cccc62a605975cf0f28dc1f27cab16420b150d146f76fe8",
-    "zh:098d762dfa13771ec1c010c5974eec76dc59c7b5e7c692f44d65def66798445f",
-    "zh:0ba33df47e63db381883231dbf11eb5926e8f3df5f4fc925b666c2f53377ff89",
-    "zh:0d14108bccef614cae1e9cb7d24f1a7b4190370c253f686e37235af25943d3b2",
-    "zh:137b7e52303d38bfaa83784b5216e035fddaf83375ce5996be716b3ef066c6fe",
-    "zh:199af027d82ebeaadf168a5f536bf4a99d6cedb3171be38e5ca5a3cc4782eaec",
-    "zh:4d9b667ea0c2d955057894b3bf83e8a0a87460e4e20d7c157fe7a058cc3b962d",
-    "zh:66649aa17883bf91fade88853d99ddb72cc09e430d6440b59036dbeaf8b3342a",
-    "zh:6ab7da9404ec90205fc5866b16716e7e126c39363d2bf59d495bc878b5214e78",
-    "zh:75083d39d9bdf085222d0ff3b7f8d8d1d5dc4c9bbc06321abe59408424b22048",
-    "zh:750df572757e2b845d991dd83636eb3a89f548b7b7b4f65540221683b19a5efb",
-    "zh:b1a315fb486394c8e0c124070c5d003979f6c5bd104c3c4f40e35f6a0fb4be4f",
-    "zh:b99eca0054115edc3f3070163e84f7eda18b8c75e58b2a9a5cf21a1b374fb0d6",
-    "zh:c9f96a8ee42c804e4af129b4c41b88da848ab16ce304c012da16f8853ea0d217",
-    "zh:cb0892837cecfaefecad7137c4a8729635196f5b657e57adbbb0498802a3ba87",
-    "zh:f6057496ac45093be445ed8423dc9dfcdbb21e5cc6d6348dbe3a8d5641882f3f",
-  ]
-}
-
-provider "registry.terraform.io/hashicorp/local" {
-  version = "2.5.2"
-  hashes = [
-    "h1:IyFbOIO6mhikFNL/2h1iZJ6kyN3U00jgkpCLUCThAfE=",
-    "zh:136299545178ce281c56f36965bf91c35407c11897f7082b3b983d86cb79b511",
-    "zh:3b4486858aa9cb8163378722b642c57c529b6c64bfbfc9461d940a84cd66ebea",
-    "zh:4855ee628ead847741aa4f4fc9bed50cfdbf197f2912775dd9fe7bc43fa077c0",
-    "zh:4b8cd2583d1edcac4011caafe8afb7a95e8110a607a1d5fb87d921178074a69b",
-    "zh:52084ddaff8c8cd3f9e7bcb7ce4dc1eab00602912c96da43c29b4762dc376038",
-    "zh:71562d330d3f92d79b2952ffdda0dad167e952e46200c767dd30c6af8d7c0ed3",
-    "zh:78d5eefdd9e494defcb3c68d282b8f96630502cac21d1ea161f53cfe9bb483b3",
-    "zh:805f81ade06ff68fa8b908d31892eaed5c180ae031c77ad35f82cb7a74b97cf4",
-    "zh:8b6b3ebeaaa8e38dd04e56996abe80db9be6f4c1df75ac3cccc77642899bd464",
-    "zh:ad07750576b99248037b897de71113cc19b1a8d0bc235eb99173cc83d0de3b1b",
-    "zh:b9f1c3bfadb74068f5c205292badb0661e17ac05eb23bfe8bd809691e4583d0e",
-    "zh:cc4cbcd67414fefb111c1bf7ab0bc4beb8c0b553d01719ad17de9a047adff4d1",
-  ]
-}
-
-provider "registry.terraform.io/oxidecomputer/oxide" {
   version     = "0.5.0"
   constraints = "0.5.0"
   hashes = [

@@ -274,33 +274,54 @@ data "oxide_instance_external_ips" "nginx_lb" {
 
 locals {
   sorted_instance_keys = sort(keys(oxide_instance.nodes))
+
   node_ips = [
     for k in local.sorted_instance_keys :
     data.oxide_instance_external_ips.nodes[k].external_ips[0].ip
   ]
-  nginx_lb_ip           = data.oxide_instance_external_ips.nginx_lb.external_ips[0].ip
-  api_endpoint          = local.node_ips[0]
+
+  internal_node_ips = [
+    for k in local.sorted_instance_keys :
+    tolist(oxide_instance.nodes[k].network_interfaces)[0].ip_address
+  ]
+
+  nginx_lb_ip  = data.oxide_instance_external_ips.nginx_lb.external_ips[0].ip
+  api_endpoint = local.internal_node_ips[0]
+
+  internal_ip = local.internal_node_ips[0]
+  external_ip = local.node_ips[0]
+
   extra_inventory_lines = <<EOT
 
   lb:
     hosts:
       ${local.nginx_lb_ip}:
-        traefik_backend_host: ${local.node_ips[0]}
+        traefik_backend_hosts:
+%{ for ip in local.internal_node_ips ~}
+          - ${ip}
+%{ endfor ~}
 
-    api_endpoint: "{{ hostvars[groups['server'][0]].ansible_default_ipv4.address }}"
-    extra_server_args: "--tls-san {{ hostvars[groups['server'][0]].ansible_default_ipv4.address }} --tls-san {{ hostvars[groups['server'][0]]['ansible_host'] | default(groups['server'][0]) }}"
+  k3s_cluster:
+    vars:
+      api_endpoint: "${local.internal_node_ips[0]}"
+      extra_server_args: "--tls-san ${local.internal_node_ips[0]} --tls-san ${local.node_ips[0]}"
 EOT
 }
+
 
 resource "local_file" "inventory_yaml" {
   filename = "${path.root}/../../inventory.yml"
   content = templatefile("${path.root}/templates/inventory.yml.tpl", {
-    node_ips           = local.node_ips,
-    server_count       = var.server_count,
-    nginx_lb_ip        = local.nginx_lb_ip,
-    traefik_backend_ip = local.node_ips[0]
-    ansible_user       = var.ansible_user
-    k3s_token          = var.k3s_token
-    k3s_version        = var.k3s_version
+    node_ips             = local.node_ips,
+    server_count         = var.server_count,
+    nginx_lb_ip          = local.nginx_lb_ip,
+    backend_ips          = local.internal_node_ips,
+    ansible_user         = var.ansible_user,
+    k3s_token            = var.k3s_token,
+    k3s_version          = var.k3s_version,
+    api_endpoint         = local.api_endpoint,
+    internal_ip          = local.internal_ip,
+    external_ip          = local.external_ip
   })
 }
+

@@ -30,3 +30,52 @@
   delegate_to: localhost
   become: false
   run_once: true
+
+- name: Lookup NGINX LB host from inventory
+  set_fact:
+    nginx_lb_host: "{{ groups['lb'][0] }}"
+  run_once: true
+  delegate_to: localhost
+  become: false
+
+- name: Deploy ArgoCD Ingress
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: argocd
+        namespace: argocd
+      spec:
+        ingressClassName: traefik
+        rules:
+          - host: "{{ argocd_hostname }}"
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: argocd-server
+                      port:
+                        number: 80
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Wait for ArgoCD via NGINX HTTP to respond (Host spoofed)
+  uri:
+    url: "http://{{ nginx_lb_host }}/"
+    method: GET
+    headers:
+      Host: "{{ argocd_hostname }}"
+    return_content: no
+    status_code: 200
+  delegate_to: localhost
+  run_once: true
+  register: argo_http_check
+  retries: 10
+  delay: 5
+  until: argo_http_check.status == 200
+
