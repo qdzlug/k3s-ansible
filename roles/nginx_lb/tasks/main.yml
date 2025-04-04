@@ -39,25 +39,12 @@
     content: |
       load_module /etc/nginx/modules/ngx_stream_module.so;
 
-- name: Ensure sites-available and sites-enabled directories exist
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    mode: "0755"
-  loop:
-    - /etc/nginx/sites-available
-    - /etc/nginx/sites-enabled
-
 - name: Ensure NGINX is enabled and running
   ansible.builtin.service:
     name: nginx
     enabled: true
     state: started
 
-#- name: Get list of all node IPs
-#  set_fact:
-#    traefik_backend_hosts: "{{ groups['k3s_cluster'] | map('extract', hostvars, 'ansible_host') | list }}"
-#
 - name: Get list of all node internal IPs
   set_fact:
     traefik_backend_hosts: >-
@@ -84,31 +71,18 @@
 - name: Deploy NGINX HTTP proxy configuration
   ansible.builtin.template:
     src: nginx_k3s_proxy.conf.j2
-    dest: /etc/nginx/sites-available/k3s
+    dest: /etc/nginx/conf.d/k3s.conf
     mode: "0644"
 
-- name: Enable k3s HTTP site
+- name: Remove default NGINX landing page config
   ansible.builtin.file:
-    src: /etc/nginx/sites-available/k3s
-    dest: /etc/nginx/sites-enabled/k3s
-    state: link
-    force: true
-
-- name: Remove default site if enabled
-  ansible.builtin.file:
-    path: /etc/nginx/sites-enabled/default
+    path: /etc/nginx/conf.d/default.conf
     state: absent
-
-- name: Create streams-enabled directory
-  ansible.builtin.file:
-    path: /etc/nginx/streams-enabled
-    state: directory
-    mode: "0755"
 
 - name: Deploy NGINX stream passthrough config for HTTPS
   ansible.builtin.template:
     src: nginx_k3s_stream.conf.j2
-    dest: /etc/nginx/streams-enabled/k3s-https.conf
+    dest: /etc/nginx/stream.conf
     mode: "0644"
 
 - name: Ensure NGINX includes stream configs
@@ -118,6 +92,14 @@
     line: '    include /etc/nginx/streams-enabled/*.conf;'
     state: present
     regexp: 'streams-enabled/\\*\\.conf'
+
+- name: Ensure NGINX includes top-level stream config
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    insertafter: '^worker_processes'
+    line: 'include /etc/nginx/stream.conf;'
+    state: present
+    regexp: 'stream\.conf'
 
 - name: Reload NGINX
   ansible.builtin.service:
