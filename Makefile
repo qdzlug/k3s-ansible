@@ -76,6 +76,11 @@ nginx-lb:
 	@echo "Configuring NGINX load balancer..."
 	$(ANSIBLE) playbooks/nginx-lb.yaml -i inventory.yml
 
+.PHONY: cert-mgr
+cert-mgr:
+	@echo "Configuring cert-manager..."
+	$(ANSIBLE) playbooks/cert-manager.yaml -i inventory.yml
+
 .PHONY: bootstrap-argo
 bootstrap-argo:
 	@echo "Bootstrapping ArgoCD..."
@@ -108,5 +113,5 @@ lint:
 	$(VENV)/bin/ansible-lint playbooks/
 
 .PHONY: full-deploy
-full-deploy: venv validate infra-up deploy fix-kubeconfig nginx-lb bootstrap-argo check
+full-deploy: venv validate infra-up deploy fix-kubeconfig nginx-lb cert-mgr bootstrap-argo check
 	@echo "Full deployment complete!"

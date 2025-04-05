@@ -297,9 +297,9 @@ locals {
     hosts:
       ${local.nginx_lb_ip}:
         traefik_backend_hosts:
-%{ for ip in local.internal_node_ips ~}
+%{for ip in local.internal_node_ips~}
           - ${ip}
-%{ endfor ~}
+%{endfor~}
 
   k3s_cluster:
     vars:
@@ -312,16 +312,16 @@ EOT
 resource "local_file" "inventory_yaml" {
   filename = "${path.root}/../../inventory.yml"
   content = templatefile("${path.root}/templates/inventory.yml.tpl", {
-    node_ips             = local.node_ips,
-    server_count         = var.server_count,
-    nginx_lb_ip          = local.nginx_lb_ip,
-    backend_ips          = local.internal_node_ips,
-    ansible_user         = var.ansible_user,
-    k3s_token            = var.k3s_token,
-    k3s_version          = var.k3s_version,
-    api_endpoint         = local.api_endpoint,
-    internal_ip          = local.internal_ip,
-    external_ip          = local.external_ip
+    node_ips     = local.node_ips,
+    server_count = var.server_count,
+    nginx_lb_ip  = local.nginx_lb_ip,
+    backend_ips  = local.internal_node_ips,
+    ansible_user = var.ansible_user,
+    k3s_token    = var.k3s_token,
+    k3s_version  = var.k3s_version,
+    api_endpoint = local.api_endpoint,
+    internal_ip  = local.internal_ip,
+    external_ip  = local.external_ip
   })
 }
 

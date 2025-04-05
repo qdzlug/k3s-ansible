@@ -6,3 +6,4 @@ inventory.yml
 playbook/debug.yml
 .ansible
 .idea!/infra/oxide/.terraform.lock.hcl
+!/roles/cert_manager/vars/main.yml
