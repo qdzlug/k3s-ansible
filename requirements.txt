@@ -4,4 +4,5 @@ openshift
 PyYAML
 ansible
 jmespath
+ansible-lint
 
