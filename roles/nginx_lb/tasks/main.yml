@@ -1,6 +1,6 @@
 ---
 - name: Install required dependencies for HTTPS transport and keyring
-  ansible.builtin.apt:
+  apt:
     name:
       - curl
       - gnupg2
@@ -10,20 +10,13 @@
     state: present
     update_cache: true
 
-- name: Download NGINX signing key
-  ansible.builtin.get_url:
-    url: https://nginx.org/keys/nginx_signing.key
-    dest: /tmp/nginx_signing.key
-    mode: "0644"
-
-- name: Convert NGINX key to GPG format
-  ansible.builtin.command: >
-    gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg /tmp/nginx_signing.key
+- name: Add official NGINX signing key
+  shell: curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor | tee /usr/share/keyrings/nginx-archive-keyring.gpg > /dev/null
   args:
     creates: /usr/share/keyrings/nginx-archive-keyring.gpg
 
 - name: Add official NGINX repository
-  ansible.builtin.apt_repository:
+  apt_repository:
     repo: "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/ubuntu {{ ansible_distribution_release | lower }} nginx"
     state: present
     filename: nginx
@@ -34,25 +27,51 @@
     state: present
     update_cache: true
 
-- name: Ensure required directories exist
+- name: Ensure modules-enabled directory exists
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: /etc/nginx/modules-enabled
     state: directory
     mode: "0755"
-  loop:
-    - /etc/nginx/modules-enabled
-    - /etc/nginx/sites-available
-    - /etc/nginx/sites-enabled
-    - /etc/nginx/streams-enabled
 
 - name: Ensure NGINX stream module is loaded from correct path
-  ansible.builtin.copy:
+  copy:
     dest: /etc/nginx/modules-enabled/50-stream.conf
     content: |
       load_module /etc/nginx/modules/ngx_stream_module.so;
-    mode: "0644"
-    owner: root
-    group: root
+
+- name: Ensure NGINX is enabled and running
+  ansible.builtin.service:
+    name: nginx
+    enabled: true
+    state: started
+
+- name: Get list of all node internal IPs
+  set_fact:
+    traefik_backend_hosts: >-
+      {{ groups['k3s_cluster']
+         | map('extract', hostvars, ['ansible_default_ipv4', 'address'])
+         | list }}
+
+- name: Get Traefik NodePort info
+  kubernetes.core.k8s_info:
+    kind: Service
+    namespace: kube-system
+    name: traefik
+    kubeconfig: "{{ kubeconfig | default(lookup('env', 'HOME') ~ '/.kube/config') }}"
+  register: traefik_info
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Set Traefik NodePort values
+  set_fact:
+    traefik_http_nodeport: "{{ traefik_info.resources[0].spec.ports | selectattr('port', 'equalto', 80) | map(attribute='nodePort') | list | first }}"
+    traefik_https_nodeport: "{{ traefik_info.resources[0].spec.ports | selectattr('port', 'equalto', 443) | map(attribute='nodePort') | list | first }}"
+
+- name: Fail if traefik_backend_hosts is not defined
+  ansible.builtin.fail:
+    msg: "traefik_backend_hosts must be defined"
+  when: traefik_backend_hosts is not defined
 
 - name: Deploy NGINX HTTP proxy configuration
   ansible.builtin.template:
@@ -74,10 +93,10 @@
 - name: Ensure NGINX includes stream configs
   ansible.builtin.lineinfile:
     path: /etc/nginx/nginx.conf
-    insertafter: "http {"
-    line: "    include /etc/nginx/streams-enabled/*.conf;"
+    insertafter: 'http {'
+    line: '    include /etc/nginx/streams-enabled/*.conf;'
     state: present
-    regexp: "streams-enabled/\\*\\.conf"
+    regexp: 'streams-enabled/\\*\\.conf'
 
 - name: Ensure NGINX includes top-level stream config
   ansible.builtin.lineinfile:
@@ -91,53 +110,3 @@
   ansible.builtin.service:
     name: nginx
     state: reloaded
-
-# --- Traefik NodePort Patching ---
-
-- name: Set kubeconfig default path
-  ansible.builtin.set_fact:
-    effective_kubeconfig: "{{ kubeconfig | default(lookup('env', 'HOME') ~ '/.kube/config.new') ~ ':' ~ lookup('env', 'HOME') ~ '/.kube/config:/etc/rancher/k3s/k3s.yaml' }}"
-
-- name: Patch Traefik NodePort values via k8s module
-  kubernetes.core.k8s:
-    state: present
-    kind: Service
-    name: traefik
-    namespace: kube-system
-    api_version: v1
-    definition:
-      spec:
-        type: LoadBalancer
-        ports:
-          - name: web
-            port: 80
-            targetPort: web
-            protocol: TCP
-            nodePort: 30080
-          - name: websecure
-            port: 443
-            targetPort: websecure
-            protocol: TCP
-            nodePort: 30443
-  delegate_to: localhost
-  become: false
-  environment:
-    KUBECONFIG: "{{ effective_kubeconfig }}"
-
-- name: Wait for Traefik service to be updated
-  kubernetes.core.k8s_info:
-    kind: Service
-    namespace: kube-system
-    name: traefik
-  register: traefik_service_info
-  delegate_to: localhost
-  environment:
-    KUBECONFIG: "{{ effective_kubeconfig }}"
-  become: false
-  retries: 10
-  delay: 6
-  until:
-    - traefik_service_info.resources | length > 0
-    - 30080 in (traefik_service_info.resources[0].spec.ports | map(attribute='nodePort') | list)
-    - 30443 in (traefik_service_info.resources[0].spec.ports | map(attribute='nodePort') | list)
-  changed_when: false
