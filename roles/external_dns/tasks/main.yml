@@ -1,0 +1,93 @@
+---
+- name: Create secret for DNSimple token
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: dnsimple-token
+        namespace: "{{ external_dns_namespace }}"
+      stringData:
+        token: "{{ dnsimple_token }}"
+  delegate_to: localhost
+  run_once: true
+  when: external_dns_provider == 'dnsimple'
+
+- name: Set nginx_lb_ip from inventory
+  set_fact:
+    nginx_lb_ip: "{{ hostvars[groups['lb'][0]]['ansible_host'] | default(groups['lb'][0]) }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Add Bitnami Helm repo
+  kubernetes.core.helm_repository:
+    name: bitnami
+    repo_url: "https://charts.bitnami.com/bitnami"
+    force_update: true
+  delegate_to: localhost
+  run_once: true
+
+- name: Deploy external_dns
+  kubernetes.core.helm:
+    name: external-dns
+    chart_ref: bitnami/external-dns
+    release_namespace: "{{ external_dns_namespace }}"
+    create_namespace: true
+    values:
+      provider: dnsimple
+      sources:
+        - ingress
+      policy: sync
+      registry: txt
+      txtOwnerId: "k8s"
+      domainFilters:
+        - "{{ dnsimple_domain }}"
+      extraArgs:
+        txt-prefix: external-dns-
+      env:
+        - name: DNSIMPLE_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: dnsimple-token
+              key: token
+  delegate_to: localhost
+  run_once: true
+
+- name: Verify A record exists in DNSimple
+  ansible.builtin.uri:
+    url: "https://api.dnsimple.com/v2/{{ dnsimple_account_id }}/zones/{{ dnsimple_domain }}/records"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ dnsimple_token }}"
+      Accept: "application/json"
+    return_content: true
+  register: dns_records_response
+  delegate_to: localhost
+  run_once: true
+  when:
+    - external_dns_provider == 'dnsimple'
+    - dnsimple_account_id is defined
+
+- name: Debug DNS record verification result
+  vars:
+    hostname: "argocd"
+    fqdn: "{{ hostname }}.{{ dnsimple_domain }}"
+    a_records: >-
+      {{ dns_records_response.json.data
+         | selectattr('name', '==', hostname)
+         | selectattr('type', '==', 'A')
+         | list }}
+    a_record: "{{ a_records[0] if a_records | length > 0 else {} }}"
+  debug:
+    msg: >-
+      {% if a_records | length > 0 and a_record.content == nginx_lb_ip %}
+        ✅ DNS A record for {{ fqdn }} is correctly set to {{ nginx_lb_ip }}
+      {% elif a_records | length > 0 %}
+        ⚠️  DNS A record for {{ fqdn }} exists but points to {{ a_record.content }} instead of {{ nginx_lb_ip }}
+      {% else %}
+        ❌ DNS A record for {{ fqdn }} was not found
+      {% endif %}
+  when:
+    - dns_records_response is defined
+    - dns_records_response.status == 200

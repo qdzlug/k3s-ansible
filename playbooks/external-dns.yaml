@@ -1,0 +1,6 @@
+---
+- name: Deploy ExternalDNS to manage DNS records with DNSimple
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: external_dns

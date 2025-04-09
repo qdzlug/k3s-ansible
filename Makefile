@@ -37,7 +37,7 @@ venv:
 	@test -d $(VENV) || python3 -m venv $(VENV)
 	$(VENV)/bin/pip install -U pip
 	$(VENV)/bin/pip install -r requirements.txt
-	$(VENV)/bin/ansible-galaxy collection install -r collections/requirements.yml || true
+	$(VENV)/bin/ansible-galaxy collection install -r collections/requirements.yml  || true
 
 .PHONY: validate
 validate:
@@ -81,6 +81,11 @@ cert-mgr:
 	@echo "Configuring cert-manager..."
 	$(ANSIBLE) playbooks/cert-manager.yaml -i inventory.yml
 
+.PHONY: external-dns
+external-dns:
+	@echo "Configuring external-dns..."
+	$(ANSIBLE) playbooks/external-dns.yaml -i inventory.yml
+
 .PHONY: bootstrap-argo
 bootstrap-argo:
 	@echo "Bootstrapping ArgoCD..."
@@ -113,5 +118,5 @@ lint:
 	$(VENV)/bin/ansible-lint playbooks/
 
 .PHONY: full-deploy
-full-deploy: venv validate infra-up deploy fix-kubeconfig nginx-lb cert-mgr bootstrap-argo check
+full-deploy: venv validate infra-up deploy fix-kubeconfig nginx-lb cert-mgr external-dns bootstrap-argo check
 	@echo "Full deployment complete!"

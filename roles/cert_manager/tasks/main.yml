@@ -3,6 +3,7 @@
   kubernetes.core.helm_repository:
     name: jetstack
     repo_url: "{{ cert_manager_helm_repo }}"
+    force_update: true
   delegate_to: localhost
   become: false
   run_once: true

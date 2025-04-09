@@ -31,12 +31,11 @@
   become: false
   run_once: true
 
-- name: Lookup NGINX LB host from inventory
+- name: Set nginx_lb_ip from inventory
   set_fact:
-    nginx_lb_host: "{{ groups['lb'][0] }}"
-  run_once: true
+    nginx_lb_ip: "{{ hostvars[groups['lb'][0]]['ansible_host'] | default(groups['lb'][0]) }}"
   delegate_to: localhost
-  become: false
+  run_once: true
 
 - name: Deploy ArgoCD Ingress with TLS (via cert-manager)
   kubernetes.core.k8s:
@@ -50,6 +49,8 @@
         annotations:
           cert-manager.io/cluster-issuer: "{{ argocd_tls_issuer | default('letsencrypt-dns') }}"
           nginx.ingress.kubernetes.io/ssl-redirect: "true"
+          external-dns.alpha.kubernetes.io/hostname: "{{ argocd_hostname }}"
+          external-dns.alpha.kubernetes.io/target: "{{ nginx_lb_ip }}"
       spec:
         ingressClassName: traefik
         tls:
@@ -73,7 +74,7 @@
 
 - name: Wait for ArgoCD via HTTPS with host spoofing
   ansible.builtin.uri:
-    url: "https://{{ nginx_lb_host }}/"
+    url: "https://{{ nginx_lb_ip }}/"
     method: GET
     headers:
       Host: "{{ argocd_hostname }}"
@@ -87,7 +88,7 @@
   delay: 5
   ignore_errors: true
   until: argo_https_check is defined and
-    ('status' in argo_https_check and argo_https_check.status == 200)
+         (argo_https_check.status | default(0)) == 200
 
 - name: Debug HTTPS response (for troubleshooting)
   debug:

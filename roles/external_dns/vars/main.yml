@@ -1,0 +1,6 @@
+---
+external_dns_namespace: kube-system
+external_dns_provider: dnsimple
+dnsimple_token: "BZdrVbTTQCko7ucFo3HvtIqAql0IEl6m"
+dnsimple_domain: "virington.com"
+dnsimple_account_id: "122355"
