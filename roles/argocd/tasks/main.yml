@@ -27,6 +27,8 @@
       server:
         service:
           type: ClusterIP
+        extraArgs:
+          - --insecure
   delegate_to: localhost
   become: false
   run_once: true
@@ -83,6 +85,7 @@
     status_code: 200
   delegate_to: localhost
   run_once: true
+  become: false
   register: argo_https_check
   retries: 10
   delay: 5
