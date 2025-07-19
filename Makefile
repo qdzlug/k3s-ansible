@@ -27,6 +27,16 @@ help:
 	@echo "  lint            - Run linting on Terraform and Ansible files"
 	@echo "  full-deploy     - Run validate, infra-up, deploy, fix-kubeconfig, and check in order"
 
+
+venv:
+	@test -d $(VENV) || { \
+		echo "Creating venv in $(VENV)"; \
+		python3 -m venv $(VENV) && \
+		$(VENV)/bin/pip install -U pip && \
+		$(VENV)/bin/pip install -r requirements.txt && \
+		$(VENV)/bin/ansible-galaxy collection install -r collections/requirements.yml || true; \
+	}
+
 # Validate Terraform configuration
 .PHONY: validate
 validate:
@@ -70,6 +80,11 @@ fix-kubeconfig:
 	ansible-playbook infra/oxide/fix-kubeconfig.yml -i inventory.yml
 
 # Check that the infrastructure is up using kubectl commands
+.PHONY: longhorn
+longhorn:
+	@echo "Deploying Longhorn..."
+	$(ANSIBLE) playbooks/longhorn.yml -i inventory.yml
+
 .PHONY: check
 check:
 	@echo "Checking cluster nodes..."
@@ -94,6 +109,5 @@ lint:
 	ansible-lint playbooks/
 
 # Full deployment: validate, infra-up, deploy, fix-kubeconfig, and check (in order)
-.PHONY: full-deploy
 full-deploy: validate infra-up deploy fix-kubeconfig check
 	@echo "Full deployment complete!"
